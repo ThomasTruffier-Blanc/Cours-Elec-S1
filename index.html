@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthèse TP Élec & Télécom - Interactive Companion</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Lab Coat & Circuit Board -->
+    <!-- 
+        Background: Slate-50 (Lab Cleanliness)
+        Primary: Cyan-700 (Oscilloscope Traces/Tech)
+        Secondary: Slate-600 (Hardware)
+        Accent: Amber-500 (Warnings/Highlights)
+    -->
+    
+    <!-- Application Structure Plan: 
+        The app is structured as a "Digital Lab Bench". 
+        Instead of a linear document, it uses a Tabbed Interface representing different lab stations:
+        1. Fundamentals (Bases & Mesures): Interactive calculators for basic laws and safety warnings.
+        2. Signal Analysis (Signaux): A 'Virtual Oscilloscope' to visualize Veff/Vmoy concepts dynamically.
+        3. Transient Circuits (Circuit RC): A simulator to visualize the capacitor charge curve and Tau ($\tau$).
+        4. Transmission (Lignes & Prop.): Calculators for velocity factor and attenuation.
+        5. Telecoms (Optique & dB): Conversions for dBm and spectrum info.
+        
+        Why? This structure mimics the physical workflow of the TPs (Component selection -> Signal Generation -> Measurement -> Transmission Analysis).
+    -->
+
+    <!-- Visualization & Content Choices:
+        - Fundamentals: Div-based block diagrams for Voltage Divider to show relationships physically.
+        - Signals: Chart.js Line chart updating in real-time to show how Amplitude affects Veff (RMS).
+        - RC Circuit: Chart.js Line chart plotting V(t) = E(1 - e^-t/RC) to visually identify the 63% mark.
+        - Telecom: Input/Output calculators for dBm to provide instant feedback on logarithmic scales.
+        - NO SVG/Mermaid used. All visuals are HTML/CSS or Canvas.
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Max width for readability */
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px; /* Base height */
+            max-height: 400px;
+        }
+        .nav-item.active {
+            border-bottom: 3px solid #0e7490; /* cyan-700 */
+            color: #0e7490;
+            font-weight: 700;
+        }
+        .input-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.375rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-cyan-800">⚡ Lab Companion</span>
+                    <span class="ml-4 text-sm text-slate-500 hidden sm:block">Synthèse TP n°1 à 9</span>
+                </div>
+                <div class="text-sm font-medium text-slate-600">S1 - Élec/Télécom</div>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <nav class="bg-slate-100 border-b border-slate-200 overflow-x-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8">
+                <button onclick="switchTab('fundamentals')" id="nav-fundamentals" class="nav-item active py-4 px-1 whitespace-nowrap text-sm font-medium transition-colors hover:text-cyan-700">
+                    1. Bases & Mesures
+                </button>
+                <button onclick="switchTab('signals')" id="nav-signals" class="nav-item py-4 px-1 whitespace-nowrap text-sm font-medium transition-colors hover:text-cyan-700">
+                    2. Signaux (Scope)
+                </button>
+                <button onclick="switchTab('rc-circuit')" id="nav-rc-circuit" class="nav-item py-4 px-1 whitespace-nowrap text-sm font-medium transition-colors hover:text-cyan-700">
+                    3. Circuit RC
+                </button>
+                <button onclick="switchTab('transmission')" id="nav-transmission" class="nav-item py-4 px-1 whitespace-nowrap text-sm font-medium transition-colors hover:text-cyan-700">
+                    4. Propagation
+                </button>
+                <button onclick="switchTab('telecom')" id="nav-telecom" class="nav-item py-4 px-1 whitespace-nowrap text-sm font-medium transition-colors hover:text-cyan-700">
+                    5. Télécoms & Optique
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
+
+        <!-- SECTION 1: FUNDAMENTALS -->
+        <section id="fundamentals" class="tab-content block animate-fade-in">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">Bases de l'Électronique</h1>
+                <p class="text-lg text-slate-600">
+                    Révision des lois fondamentales (Ohm, Kirchhoff) et de l'instrumentation. Cette section couvre les concepts du TP 1 et les précautions de sécurité du TP 8.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Laws Card -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-cyan-500">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="text-2xl mr-2">⚖️</span> Lois Fondamentales
+                    </h2>
+                    <ul class="space-y-3">
+                        <li class="p-3 bg-slate-50 rounded-lg">
+                            <strong class="text-cyan-700">Loi d'Ohm :</strong> 
+                            <span class="font-mono bg-slate-200 px-1 rounded">U = R × I</span>
+                        </li>
+                        <li class="p-3 bg-slate-50 rounded-lg">
+                            <strong class="text-cyan-700">Loi des Mailles :</strong> 
+                            La somme des tensions dans une boucle fermée est nulle ($\sum U = 0$).
+                        </li>
+                        <li class="p-3 bg-slate-50 rounded-lg">
+                            <strong class="text-cyan-700">Pont Diviseur de Tension :</strong>
+                            <div class="mt-2 text-sm text-slate-600">
+                                Pour deux résistances $R_1$ et $R_2$ en série :
+                                <div class="font-mono bg-slate-200 p-2 mt-1 rounded text-center">
+                                    U₂ = E × (R₂ / (R₁ + R₂))
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Interactive Voltage Divider -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4">🧮 Calculateur : Pont Diviseur</h2>
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="input-group">
+                            <label>Tension E (V)</label>
+                            <input type="number" id="calc-E" value="10" oninput="updateVoltageDivider()">
+                        </div>
+                        <div class="input-group">
+                            <label>R1 (kΩ)</label>
+                            <input type="number" id="calc-R1" value="10" oninput="updateVoltageDivider()">
+                        </div>
+                        <div class="input-group">
+                            <label>R2 (kΩ)</label>
+                            <input type="number" id="calc-R2" value="33" oninput="updateVoltageDivider()">
+                        </div>
+                    </div>
+                    
+                    <!-- Visual Representation -->
+                    <div class="bg-slate-100 p-4 rounded-lg flex flex-col items-center justify-center relative h-40 border border-slate-300">
+                        <div class="absolute top-2 left-2 font-mono text-xs text-slate-500">Circuit Série</div>
+                        <div class="w-16 h-full border-r-2 border-slate-400 absolute left-1/3 top-0"></div>
+                        <div class="absolute left-1/3 top-0 w-full border-t-2 border-slate-400"></div>
+                        <div class="absolute left-1/3 bottom-0 w-full border-b-2 border-slate-400"></div>
+                        
+                        <div class="flex flex-col w-32 items-center z-10 space-y-2">
+                            <div class="bg-amber-100 border border-amber-300 rounded px-2 py-1 text-center w-full">
+                                <div class="text-xs text-amber-800">R1</div>
+                                <div class="font-bold text-amber-900" id="disp-R1">10 kΩ</div>
+                            </div>
+                            <div class="bg-green-100 border border-green-300 rounded px-2 py-1 text-center w-full">
+                                <div class="text-xs text-green-800">R2 (Sortie)</div>
+                                <div class="font-bold text-green-900" id="disp-R2">33 kΩ</div>
+                            </div>
+                        </div>
+
+                        <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-right">
+                            <div class="text-sm text-slate-500">Tension U2 :</div>
+                            <div class="text-2xl font-bold text-cyan-600" id="result-U2">7.67 V</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Safety Warning (TP 8) -->
+                <div class="lg:col-span-2 bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+                    <div class="text-3xl">⚠️</div>
+                    <div>
+                        <h3 class="text-lg font-bold text-red-800">Point de Vigilance : Masse Oscilloscope (TP 8)</h3>
+                        <p class="text-red-700 mt-1">
+                            Les masses des voies CH1 et CH2 sont reliées à la <strong>terre</strong>. 
+                            Ne mesurez jamais directement deux tensions qui n'ont pas le même point de référence (masse commune), 
+                            sinon vous créerez un court-circuit via l'oscilloscope !
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: SIGNAL ANALYSIS -->
+        <section id="signals" class="tab-content hidden">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">Caractérisation des Signaux</h1>
+                <p class="text-lg text-slate-600">
+                    Analyse des signaux périodiques (TP 2). Visualisez l'impact de l'amplitude et de la forme du signal sur les valeurs Moyennes et Efficaces (RMS).
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Controls -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4">🎛️ Générateur Virtuel</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label>Forme du Signal</label>
+                            <select id="sig-type" onchange="updateSignalChart()">
+                                <option value="sine">Sinusoïdal</option>
+                                <option value="triangle">Triangulaire</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Amplitude Max (V)</label>
+                            <input type="range" id="sig-amp" min="1" max="10" step="0.5" value="5" class="w-full" oninput="updateSignalChart()">
+                            <div class="text-right font-mono text-cyan-600" id="val-amp">5 V</div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Fréquence (Hz)</label>
+                            <input type="range" id="sig-freq" min="100" max="1000" step="100" value="500" class="w-full" oninput="updateSignalChart()">
+                            <div class="text-right font-mono text-cyan-600" id="val-freq">500 Hz</div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-slate-50 rounded border border-slate-200">
+                            <h3 class="font-bold text-slate-700 mb-2">Formules Clés</h3>
+                            <ul class="text-sm space-y-2">
+                                <li><strong>Sinus Veff :</strong> Vmax / √2</li>
+                                <li><strong>Triangle Veff :</strong> Vmax / √3</li>
+                                <li><strong>Vmoy :</strong> 0V (si centré)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6 flex flex-col">
+                    <div class="chart-container flex-grow">
+                        <canvas id="signalChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                        <div class="p-3 bg-cyan-50 rounded border border-cyan-100">
+                            <div class="text-xs text-cyan-800 uppercase tracking-wide">Valeur Efficace (Veff)</div>
+                            <div class="text-xl font-bold text-cyan-900" id="res-veff">-- V</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded border border-slate-100">
+                            <div class="text-xs text-slate-800 uppercase tracking-wide">Valeur Moyenne (Vmoy)</div>
+                            <div class="text-xl font-bold text-slate-900" id="res-vmoy">0 V</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded border border-slate-100">
+                            <div class="text-xs text-slate-800 uppercase tracking-wide">Période (T)</div>
+                            <div class="text-xl font-bold text-slate-900" id="res-period">-- ms</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: RC CIRCUIT -->
+        <section id="rc-circuit" class="tab-content hidden">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">Circuit RC - Régime Transitoire</h1>
+                <p class="text-lg text-slate-600">
+                    Simulation de la charge d'un condensateur (TP 4). Observez l'influence de la constante de temps $\tau = R \cdot C$.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Controls -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4">🛠️ Paramètres du Circuit</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label>Tension Générateur E (V)</label>
+                            <input type="number" id="rc-E" value="10" oninput="updateRCChart()">
+                        </div>
+                        <div class="input-group">
+                            <label>Résistance R (Ω)</label>
+                            <input type="number" id="rc-R" value="1000" step="100" oninput="updateRCChart()">
+                        </div>
+                        <div class="input-group">
+                            <label>Capacité C (µF)</label>
+                            <input type="number" id="rc-C" value="1" step="0.1" oninput="updateRCChart()">
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <h3 class="font-bold text-slate-700 mb-2">Calculs Théoriques</h3>
+                        <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm text-amber-800">Tau ($\tau$):</span>
+                                <span class="font-bold text-amber-900" id="val-tau">-- ms</span>
+                            </div>
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm text-amber-800">Temps à 95% ($3\tau$):</span>
+                                <span class="font-bold text-amber-900" id="val-3tau">-- ms</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-amber-800">Régime Permanent ($5\tau$):</span>
+                                <span class="font-bold text-amber-900" id="val-5tau">-- ms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RC Chart -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                    <div class="chart-container">
+                        <canvas id="rcChart"></canvas>
+                    </div>
+                    <p class="mt-4 text-sm text-slate-500 italic text-center">
+                        La courbe rouge indique le niveau de charge à 63% ($t=\tau$). C'est la méthode utilisée en TP pour mesurer $\tau$ expérimentalement.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: TRANSMISSION -->
+        <section id="transmission" class="tab-content hidden">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">Lignes de Transmission</h1>
+                <p class="text-lg text-slate-600">
+                    Propriétés des câbles et propagation des signaux (TP 6, 9). Calcul de la vitesse et de l'atténuation.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Velocity Calculator -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4 text-cyan-800">🚀 Vitesse de Propagation</h2>
+                    <p class="text-sm text-slate-500 mb-4">Le signal ne voyage pas à la vitesse de la lumière ($c$) dans un câble.</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="input-group">
+                            <label>Distance d (m)</label>
+                            <input type="number" id="trans-dist" value="20" oninput="calcPropagation()">
+                        </div>
+                        <div class="input-group">
+                            <label>Retard mesuré $\Delta t$ (ns)</label>
+                            <input type="number" id="trans-time" value="100" oninput="calcPropagation()">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                        <div class="text-sm text-slate-500">Vitesse calculée ($v$)</div>
+                        <div class="text-2xl font-bold text-slate-800 mb-2" id="res-velocity">-- m/s</div>
+                        
+                        <div class="text-sm text-slate-500">Coefficient NVP (% de c)</div>
+                        <div class="text-xl font-bold text-cyan-600" id="res-nvp">-- %</div>
+                    </div>
+
+                    <div class="mt-4 text-xs text-slate-500">
+                        <strong>Valeurs Typiques :</strong><br>
+                        Coaxial RG58 : ~66% (2·10⁸ m/s)<br>
+                        Ethernet : ~60-70%
+                    </div>
+                </div>
+
+                <!-- Attenuation Calculator -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4 text-cyan-800">📉 Atténuation du Signal</h2>
+                    <p class="text-sm text-slate-500 mb-4">Perte de puissance le long du câble (en dB).</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="input-group">
+                            <label>Tension Entrée Ve (V)</label>
+                            <input type="number" id="att-ve" value="5" oninput="calcAttenuation()">
+                        </div>
+                        <div class="input-group">
+                            <label>Tension Sortie Vs (V)</label>
+                            <input type="number" id="att-vs" value="3.5" oninput="calcAttenuation()">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                        <div class="text-sm text-slate-500">Atténuation ($20 \log(Ve/Vs)$)</div>
+                        <div class="text-2xl font-bold text-amber-600" id="res-att">-- dB</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: TELECOMS -->
+        <section id="telecom" class="tab-content hidden">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">Télécoms & Optique</h1>
+                <p class="text-lg text-slate-600">
+                    Unités de puissance (dBm), Fibre optique et Analyse spectrale (TP 3, 5).
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- dBm Converter -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4">🔄 Convertisseur mW ↔ dBm</h2>
+                    <div class="input-group mb-4">
+                        <label>Puissance (mW)</label>
+                        <input type="number" id="tel-mw" value="1" step="0.0001" oninput="convertMwToDbm()">
+                    </div>
+                    <div class="flex justify-center my-2 text-2xl text-slate-300">⬇⬆</div>
+                    <div class="input-group mb-6">
+                        <label>Niveau (dBm)</label>
+                        <input type="number" id="tel-dbm" value="0" step="0.1" oninput="convertDbmToMw()">
+                    </div>
+                    
+                    <div class="text-xs text-slate-500 bg-slate-50 p-2 rounded">
+                        <strong>Repères :</strong><br>
+                        0 dBm = 1 mW<br>
+                        30 dBm = 1 W<br>
+                        -30 dBm = 1 µW
+                    </div>
+                </div>
+
+                <!-- Fiber Info -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold mb-4">🌐 Fibre Optique & Spectre</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-slate-50 p-4 rounded border border-slate-200">
+                            <h3 class="font-bold text-cyan-800 mb-2">Fenêtres de Transmission</h3>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-center">
+                                    <span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                                    <span><strong>1310 nm :</strong> Atténuation standard</span>
+                                </li>
+                                <li class="flex items-center">
+                                    <span class="w-3 h-3 bg-red-700 rounded-full mr-2"></span>
+                                    <span><strong>1550 nm :</strong> Atténuation minimale (Longue distance)</span>
+                                </li>
+                            </ul>
+                            <p class="mt-2 text-xs text-slate-500 italic">Note TP : L'atténuation est généralement plus faible à 1550nm.</p>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded border border-slate-200">
+                            <h3 class="font-bold text-cyan-800 mb-2">Analyse TNT (TP 3)</h3>
+                            <ul class="space-y-2 text-sm">
+                                <li><strong>dBµV :</strong> Unité de tension (réf 1µV).</li>
+                                <li><strong>SNR :</strong> Rapport Signal/Bruit. Plus haut = Mieux.</li>
+                                <li><strong>Multiplexage :</strong> Temporel (plusieurs chaînes sur une même fréquence).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bilan Liaison Calculator (Friis) -->
+            <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">📡 Bilan de Liaison (Espace Libre)</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="input-group">
+                        <label>Puissance Émission Pe (dBm)</label>
+                        <input type="number" id="friis-pe" value="20" oninput="calcFriis()">
+                    </div>
+                    <div class="input-group">
+                        <label>Gain Antenne Émission Ge (dBi)</label>
+                        <input type="number" id="friis-ge" value="10" oninput="calcFriis()">
+                    </div>
+                    <div class="input-group">
+                        <label>Gain Antenne Réception Gr (dBi)</label>
+                        <input type="number" id="friis-gr" value="10" oninput="calcFriis()">
+                    </div>
+                    <div class="input-group">
+                        <label>Pertes (dB)</label>
+                        <input type="number" id="friis-loss" value="100" oninput="calcFriis()">
+                    </div>
+                </div>
+                <div class="mt-4 p-4 bg-green-50 rounded border border-green-200 text-center">
+                    <span class="text-green-800 font-bold mr-2">Puissance Reçue Pr :</span>
+                    <span id="friis-res" class="text-2xl font-bold text-green-900">-- dBm</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-300 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="mb-2">Généré à partir des Comptes Rendus de TP (S1)</p>
+            <div class="text-sm text-slate-500">
+                Loi d'Ohm • Signaux • Circuit RC • Lignes • Télécoms
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. Navigation Logic ---
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('block');
+            });
+            // Show selected tab
+            const selected = document.getElementById(tabId);
+            selected.classList.remove('hidden');
+            selected.classList.add('block');
+            
+            // Update Nav Buttons
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-' + tabId).classList.add('active');
+
+            // Resize charts if tab contains them (Chart.js needs this sometimes)
+            if(tabId === 'signals') signalChart.resize();
+            if(tabId === 'rc-circuit') rcChart.resize();
+        }
+
+        // --- 2. Fundamentals: Voltage Divider ---
+        function updateVoltageDivider() {
+            const E = parseFloat(document.getElementById('calc-E').value) || 0;
+            const R1 = parseFloat(document.getElementById('calc-R1').value) || 0;
+            const R2 = parseFloat(document.getElementById('calc-R2').value) || 0;
+
+            document.getElementById('disp-R1').textContent = R1 + " kΩ";
+            document.getElementById('disp-R2').textContent = R2 + " kΩ";
+
+            if (R1 + R2 > 0) {
+                const U2 = E * (R2 / (R1 + R2));
+                document.getElementById('result-U2').textContent = U2.toFixed(2) + " V";
+            } else {
+                document.getElementById('result-U2').textContent = "Err";
+            }
+        }
+
+        // --- 3. Signals: Chart.js ---
+        let signalChart;
+        function initSignalChart() {
+            const ctx = document.getElementById('signalChart').getContext('2d');
+            signalChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // Time
+                    datasets: [{
+                        label: 'Signal V(t)',
+                        data: [],
+                        borderColor: '#0891b2', // Cyan-600
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Temps (ms)' } },
+                        y: { title: { display: true, text: 'Tension (V)' }, min: -11, max: 11 }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    }
+                }
+            });
+            updateSignalChart();
+        }
+
+        function updateSignalChart() {
+            const type = document.getElementById('sig-type').value;
+            const amp = parseFloat(document.getElementById('sig-amp').value);
+            const freq = parseFloat(document.getElementById('sig-freq').value);
+
+            // Update Labels
+            document.getElementById('val-amp').textContent = amp + " V";
+            document.getElementById('val-freq').textContent = freq + " Hz";
+
+            // Generate Data
+            const points = 100;
+            const period = 1 / freq;
+            const displayTime = period * 2; // Show 2 periods
+            const labels = [];
+            const data = [];
+
+            for (let i = 0; i <= points; i++) {
+                const t = (i / points) * displayTime;
+                labels.push((t * 1000).toFixed(2)); // ms
+
+                let val = 0;
+                if (type === 'sine') {
+                    val = amp * Math.sin(2 * Math.PI * freq * t);
+                } else {
+                    // Triangle wave approx
+                    const p = t * freq; // phase 0-1
+                    const cycle = p - Math.floor(p);
+                    if (cycle < 0.25) val = amp * (cycle * 4);
+                    else if (cycle < 0.75) val = amp * (1 - (cycle - 0.25) * 4);
+                    else val = amp * (-1 + (cycle - 0.75) * 4);
+                }
+                data.push(val);
+            }
+
+            // Calculations
+            let veff = 0;
+            if (type === 'sine') veff = amp / Math.sqrt(2);
+            else veff = amp / Math.sqrt(3);
+
+            document.getElementById('res-veff').textContent = veff.toFixed(2) + " V";
+            document.getElementById('res-vmoy').textContent = "0 V"; // Centered
+            document.getElementById('res-period').textContent = (period * 1000).toFixed(2) + " ms";
+
+            // Update Chart
+            signalChart.data.labels = labels;
+            signalChart.data.datasets[0].data = data;
+            signalChart.options.scales.y.min = -(amp + 1);
+            signalChart.options.scales.y.max = (amp + 1);
+            signalChart.update();
+        }
+
+        // --- 4. RC Circuit: Chart.js ---
+        let rcChart;
+        function initRCChart() {
+            const ctx = document.getElementById('rcChart').getContext('2d');
+            rcChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Charge Uc(t)',
+                            data: [],
+                            borderColor: '#0e7490', // Cyan-700
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Seuil 63% (Tau)',
+                            data: [],
+                            borderColor: '#ef4444', // Red-500
+                            borderDash: [5, 5],
+                            borderWidth: 1,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Temps (ms)' } },
+                        y: { title: { display: true, text: 'Tension (V)' }, min: 0 }
+                    }
+                }
+            });
+            updateRCChart();
+        }
+
+        function updateRCChart() {
+            const E = parseFloat(document.getElementById('rc-E').value);
+            const R = parseFloat(document.getElementById('rc-R').value);
+            const C_micro = parseFloat(document.getElementById('rc-C').value);
+            const C = C_micro * 1e-6; // Convert to Farads
+
+            const tau = R * C; // seconds
+            const tau_ms = tau * 1000;
+
+            // Update Stats
+            document.getElementById('val-tau').textContent = tau_ms.toFixed(2) + " ms";
+            document.getElementById('val-3tau').textContent = (3 * tau_ms).toFixed(2) + " ms";
+            document.getElementById('val-5tau').textContent = (5 * tau_ms).toFixed(2) + " ms";
+
+            // Generate Data
+            const points = 100;
+            const maxTime = 6 * tau; // Show until 6 tau
+            const labels = [];
+            const dataUc = [];
+            const dataTauLimit = [];
+            const v63 = E * 0.63;
+
+            for (let i = 0; i <= points; i++) {
+                const t = (i / points) * maxTime;
+                labels.push((t * 1000).toFixed(2));
+                
+                const uc = E * (1 - Math.exp(-t / tau));
+                dataUc.push(uc);
+                dataTauLimit.push(v63); // Horizontal line for visual ref
+            }
+
+            rcChart.data.labels = labels;
+            rcChart.data.datasets[0].data = dataUc;
+            rcChart.data.datasets[1].data = dataTauLimit;
+            rcChart.options.scales.y.max = E * 1.1;
+            rcChart.update();
+        }
+
+        // --- 5. Transmission Calcs ---
+        function calcPropagation() {
+            const d = parseFloat(document.getElementById('trans-dist').value);
+            const dt_ns = parseFloat(document.getElementById('trans-time').value);
+            
+            if (dt_ns > 0) {
+                const dt_s = dt_ns * 1e-9;
+                const v = d / dt_s;
+                const c = 3e8;
+                const nvp = (v / c) * 100;
+
+                document.getElementById('res-velocity').textContent = v.toExponential(2) + " m/s";
+                document.getElementById('res-nvp').textContent = nvp.toFixed(1) + " %";
+            }
+        }
+
+        function calcAttenuation() {
+            const ve = parseFloat(document.getElementById('att-ve').value);
+            const vs = parseFloat(document.getElementById('att-vs').value);
+            
+            if (ve > 0 && vs > 0) {
+                const att = 20 * Math.log10(ve / vs);
+                document.getElementById('res-att').textContent = att.toFixed(2) + " dB";
+            }
+        }
+
+        // --- 6. Telecom Calcs ---
+        function convertMwToDbm() {
+            const mw = parseFloat(document.getElementById('tel-mw').value);
+            if (mw > 0) {
+                const dbm = 10 * Math.log10(mw);
+                document.getElementById('tel-dbm').value = dbm.toFixed(2);
+            }
+        }
+
+        function convertDbmToMw() {
+            const dbm = parseFloat(document.getElementById('tel-dbm').value);
+            const mw = Math.pow(10, dbm / 10);
+            document.getElementById('tel-mw').value = mw.toFixed(4);
+        }
+
+        function calcFriis() {
+            const pe = parseFloat(document.getElementById('friis-pe').value) || 0;
+            const ge = parseFloat(document.getElementById('friis-ge').value) || 0;
+            const gr = parseFloat(document.getElementById('friis-gr').value) || 0;
+            const loss = parseFloat(document.getElementById('friis-loss').value) || 0;
+
+            const pr = pe + ge + gr - loss;
+            document.getElementById('friis-res').textContent = pr.toFixed(1) + " dBm";
+        }
+
+        // --- Initialization ---
+        window.addEventListener('load', () => {
+            updateVoltageDivider();
+            initSignalChart();
+            initRCChart();
+            calcPropagation();
+            calcAttenuation();
+        });
+
+    </script>
+</body>
+</html>
